@@ -10,6 +10,10 @@
 
 الهدف أن تستطيع لاحقاً معرفة أشياء مثل: أثقل وزن رفعته، ومجموع تكراراتك في يوم معيّن، وتطوّرك مع الوقت.
 
+قاعدة البيانات فيها حالياً **جدولان**:
+- `workouts`: سجل كل التمارين.
+- `personal_records`: أفضل أداء شخصي في تمارين المقاومة. تفاصيله في القسم ١٢.
+
 ---
 
 ## ٢. معلومات مشروع Supabase
@@ -25,7 +29,7 @@
 
 ---
 
-## ٣. الجدول
+## ٣. الجدول الأول: workouts
 
 اسم الجدول: **`public.workouts`**
 
@@ -256,3 +260,97 @@ where exercise_name = 'Dumbbell Biceps Curl'
 > 💡 **بديل:** من القائمة الجانبية اضغط **SQL Editor**، والصق أي استعلام `SELECT` من هذا الملف، ثم اضغط **Run**.
 >
 > ⚠️ **تجنّب** تعديل الصفوف أو حذفها من Table Editor إلا إذا كنت تقصد ذلك، لأن التغيير يُحفظ مباشرة.
+>
+> 📋 الخطوات نفسها تنطبق على جدول **personal_records**. اختره من القائمة بدل `workouts`.
+
+---
+
+## ١٢. الجدول الثاني: personal_records
+
+اسم الجدول: **`public.personal_records`**
+
+يحفظ **أفضل أداء شخصي** لك في تمارين المقاومة. كل صف يعني: "في هذا التاريخ، رفعتُ هذا الوزن، بهذا العدد من التكرارات، في هذا التمرين".
+
+الجدول **فارغ حالياً**، ولم تُضَف إليه أي بيانات بعد.
+
+### الأعمدة الـ 7
+
+| # | العمود | النوع في PostgreSQL | إلزامي؟ | الغرض |
+|---|---|---|---|---|
+| 1 | `id` | `uuid` | نعم (تلقائي) | رقم تعريف فريد، يتولّد تلقائياً. وهو المفتاح الأساسي (primary key). |
+| 2 | `exercise_name` | `text` | نعم | اسم التمرين، مثل `Dumbbell Biceps Curl`. |
+| 3 | `best_weight_kg` | `numeric` | نعم | أفضل وزن بالكيلوغرام. |
+| 4 | `reps` | `integer` | نعم | عدد التكرارات بهذا الوزن. |
+| 5 | `achieved_date` | `date` | نعم | تاريخ تحقيق هذا الرقم. |
+| 6 | `notes` | `text` | اختياري | ملاحظات حرّة. |
+| 7 | `created_at` | `timestamptz` | نعم (تلقائي) | وقت إضافة الصف، يُسجَّل تلقائياً. |
+
+### قواعد التحقق (Constraints)
+
+| اسم القاعدة | ماذا تفعل؟ |
+|---|---|
+| `personal_records_exercise_name_not_blank` | اسم التمرين لا يمكن أن يكون فارغاً أو مسافات فقط. |
+| `personal_records_best_weight_non_negative` | الوزن لا يكون سالباً، ويمكن أن يكون صفراً لتمارين وزن الجسم. |
+| `personal_records_reps_positive` | عدد التكرارات يجب أن يكون أكبر من صفر. |
+
+### الفهارس (Indexes)
+
+| اسم الفهرس | الأعمدة | الفائدة |
+|---|---|---|
+| `personal_records_name_date_idx` | `exercise_name`, `achieved_date` | البحث السريع عن أرقامك القياسية لتمرين معيّن مع التاريخ. |
+
+بالإضافة إلى فهرس المفتاح الأساسي `personal_records_pkey` الذي تنشئه قاعدة البيانات تلقائياً.
+
+### الحماية (RLS)
+**RLS مفعّلة** على هذا الجدول أيضاً. لا توجد قواعد وصول (policies) بعد، فلا يستطيع أي موقع أو تطبيق قراءة الجدول عبر الإنترنت.
+
+### أمر إنشاء الجدول
+
+```sql
+create table public.personal_records (
+  id              uuid        primary key default gen_random_uuid(),
+  exercise_name   text        not null,
+  best_weight_kg  numeric     not null,
+  reps            integer     not null,
+  achieved_date   date        not null,
+  notes           text,
+  created_at      timestamptz not null default now(),
+
+  constraint personal_records_exercise_name_not_blank
+    check (btrim(exercise_name) <> ''),
+
+  constraint personal_records_best_weight_non_negative
+    check (best_weight_kg >= 0),
+
+  constraint personal_records_reps_positive
+    check (reps > 0)
+);
+
+create index personal_records_name_date_idx
+  on public.personal_records (exercise_name, achieved_date);
+
+alter table public.personal_records enable row level security;
+```
+
+---
+
+## ١٣. العلاقة بين الجدولين
+
+### الوضع الحالي
+- **لا توجد علاقة رسمية (foreign key)** بين الجدولين حتى الآن.
+- الرابط الوحيد هو **اسم التمرين**: عمود `exercise_name` موجود في الجدولين.
+- مثلاً، صف في `personal_records` اسمه `Dumbbell Biceps Curl` يخص الصفوف التي تحمل الاسم نفسه في `workouts`.
+
+### مشكلة الربط بالاسم
+إذا كُتب الاسم بطريقة مختلفة، مثل `Dumbbell Bicep Curl` بدون حرف s، فلن تعرف قاعدة البيانات أنه التمرين نفسه.
+
+### خيارات للمستقبل (لم تُنفَّذ بعد)
+
+1. **ربط الرقم القياسي بالمجموعة التي حققته:**
+   - نضيف عموداً مثل `workout_id` في `personal_records`، يشير إلى صف معيّن في `workouts`.
+   - هذا هو الـ **foreign key**، أي مفتاح يربط صفاً في جدول بصف في جدول آخر.
+2. **جدول ثالث للتمارين (`exercises`):**
+   - نضع فيه كل اسم تمرين مرة واحدة فقط.
+   - الجدولان يشيران إليه بدل كتابة الاسم كنص، وهذا يمنع اختلاف كتابة الأسماء.
+3. **حساب الرقم القياسي تلقائياً من `workouts`:**
+   - بدل إدخاله يدوياً، نستخدم استعلاماً مثل `MAX(weight_kg)`، كما في القسم ٩.
