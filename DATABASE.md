@@ -556,6 +556,8 @@ where id = '06073f67-df68-41e5-980d-ffb846cedd8b';  -- set 3
 
 كل التمارين **بدون صور حالياً**. ستُضاف الصور في خطوة لاحقة.
 
+> ✏️ **تحديث:** رُفعت الصور لاحقاً، وأصبح لكل تمرين مسار صورته في `image_path`. التفاصيل في القسم ١٧.
+
 ### العلاقات (Foreign Keys)
 
 | اسم القاعدة | من | إلى | المعنى |
@@ -725,3 +727,107 @@ create policy "Anyone can read exercises"
 | 1 | 8 | 14 | 8 | Dumbbell Biceps Curl |
 | 2 | 10 | 12 | 7 | Dumbbell Biceps Curl |
 | 3 | 10 | 11 | 6 | Dumbbell Biceps Curl |
+
+---
+
+## ١٧. سجل التعديلات: رفع صور التمارين
+
+### مصدر الصور
+- **صورتان مجمّعتان:** وصلت صورتان، في كل واحدة منهما التمارين الخمسة.
+- **الاختيار:** اختيرت **المجموعة الحمراء**، وفيها اسم كل تمرين بالعربي والإنجليزي.
+- **التقطيع:** قُطّعت الصورة إلى ٥ صور منفصلة بصيغة **JPEG**، صورة لكل تمرين.
+- **نسخة محلية:** توجد نسخة من الصور على الجهاز في مجلد `exercise-images/` داخل المشروع.
+
+### التمارين وصورها
+
+| التمرين | النوع | `image_path` | الحجم |
+|---|---|---|---|
+| Dumbbell Biceps Curl | resistance | `resistance/dumbbell-biceps-curl.jpg` | 98 KB |
+| Stationary Bike | cardio | `cardio/stationary-bike.jpg` | 85 KB |
+| Treadmill | cardio | `cardio/treadmill.jpg` | 77 KB |
+| Elliptical | cardio | `cardio/elliptical.jpg` | 121 KB |
+| Swimming | cardio | `cardio/swimming.jpg` | 216 KB |
+
+> **ملاحظة:** الصيغة الفعلية للملفات هي `.jpg`، وليست `.webp` كما في مثال تنظيم الملفات في القسم ١٦.
+
+### الرابط العام لأي صورة
+
+```
+https://jdhgmdxgjrfdezrteigl.supabase.co/storage/v1/object/public/exercise-images/<image_path>
+```
+
+مثال:
+
+```
+https://jdhgmdxgjrfdezrteigl.supabase.co/storage/v1/object/public/exercise-images/cardio/treadmill.jpg
+```
+
+التطبيق يركّب هذا الرابط من `image_path` وقت العرض.
+
+### خطوات الرفع
+
+الحاوية مقفلة أمام الرفع عبر الإنترنت، لذلك فُتحت **مؤقتاً** لهذه الملفات الخمسة فقط، ثم أُغلقت فوراً:
+
+**١. قاعدة رفع مؤقتة ومحدودة:**
+
+```sql
+create policy "Temp: upload 5 exercise images"
+  on storage.objects
+  for insert
+  to anon
+  with check (
+    bucket_id = 'exercise-images'
+    and name in (
+      'resistance/dumbbell-biceps-curl.jpg',
+      'cardio/stationary-bike.jpg',
+      'cardio/treadmill.jpg',
+      'cardio/elliptical.jpg',
+      'cardio/swimming.jpg'
+    )
+  );
+```
+
+**٢. رفع الملفات:** رُفعت الملفات الخمسة عبر Storage API باستخدام المفتاح العام للمشروع (anon / publishable key).
+- هذا المفتاح **ليس سرياً**، فهو مصمَّم ليوضع داخل التطبيقات.
+- **لا يوجد في هذا الملف**، ولا يجب وضع أي مفتاح هنا.
+
+**٣. حذف القاعدة المؤقتة فوراً بعد الرفع:**
+
+```sql
+drop policy "Temp: upload 5 exercise images" on storage.objects;
+```
+
+**٤. تعبئة `image_path`:**
+
+```sql
+update public.exercises as e
+set image_path = v.image_path
+from (values
+  ('Dumbbell Biceps Curl', 'resistance/dumbbell-biceps-curl.jpg'),
+  ('Stationary Bike',      'cardio/stationary-bike.jpg'),
+  ('Treadmill',            'cardio/treadmill.jpg'),
+  ('Elliptical',           'cardio/elliptical.jpg'),
+  ('Swimming',             'cardio/swimming.jpg')
+) as v(name, image_path)
+where e.name = v.name;
+```
+
+### التحقق بعد الرفع
+
+| ما تحققنا منه | النتيجة |
+|---|---|
+| رفع الملفات الخمسة | نجحت كلها (رمز 200) ✅ |
+| فتح كل صورة من رابطها العام | تعمل كلها، ونوعها `image/jpeg` ✅ |
+| مطابقة الصور المرفوعة للنسخة المحلية | متطابقة 100% ✅ |
+| كل `image_path` يشير إلى ملف موجود | نعم، للتمارين الخمسة ✅ |
+| عدد الملفات في الحاوية | 5 ✅ |
+| عدد التمارين في `exercises` | 5، فلم يُضَف تمرين جديد ✅ |
+| القاعدة المؤقتة | حُذفت، ولا توجد أي قاعدة على `storage.objects` ✅ |
+| قواعد الوصول في `public` | قاعدة واحدة فقط: `Anyone can read exercises` ✅ |
+| صفوف `workouts` | لم تتغير، وما زالت مرتبطة بتمرينها ✅ |
+| `personal_records` | فارغ ✅ |
+
+### إضافة صور تمارين جديدة مستقبلاً
+1. ارفع الصورة من لوحة Supabase إلى المجلد المناسب داخل الحاوية: Storage ← `exercise-images` ← `resistance` أو `cardio`.
+2. استخدم اسماً واضحاً بحروف صغيرة وشرطات، مثل `cardio/rowing-machine.jpg`.
+3. عدّل `image_path` للتمرين في جدول `exercises`.
