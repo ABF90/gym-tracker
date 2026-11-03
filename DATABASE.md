@@ -522,7 +522,7 @@ where id = '06073f67-df68-41e5-980d-ffb846cedd8b';  -- set 3
      └─────────────────┘       └──────────────────┘
 ```
 
-### جدول `public.exercises`: الأعمدة الـ 5
+### جدول `public.exercises`: الأعمدة الـ 6
 
 | # | العمود | النوع في PostgreSQL | إلزامي؟ | الغرض |
 |---|---|---|---|---|
@@ -531,6 +531,7 @@ where id = '06073f67-df68-41e5-980d-ffb846cedd8b';  -- set 3
 | 3 | `exercise_type` | `text` | نعم | `resistance` أو `cardio` فقط. |
 | 4 | `image_path` | `text` | اختياري | **مسار** الصورة داخل الحاوية، مثل `resistance/dumbbell-biceps-curl.webp`. ليس رابطاً كاملاً. |
 | 5 | `created_at` | `timestamptz` | نعم (تلقائي) | وقت الإضافة. |
+| 6 | `image_url` | `text` | تلقائي (محسوب) | الرابط الكامل للصورة، يُحسب تلقائياً من `image_path`. أُضيف لاحقاً، انظر القسم ١٨. |
 
 **لماذا نحفظ المسار وليس الرابط الكامل؟** الرابط الكامل يحتوي على عنوان المشروع. إذا تغيّر العنوان يوماً، يبقى المسار صحيحاً، والتطبيق يركّب الرابط منه وقت العرض.
 
@@ -764,6 +765,8 @@ https://jdhgmdxgjrfdezrteigl.supabase.co/storage/v1/object/public/exercise-image
 
 التطبيق يركّب هذا الرابط من `image_path` وقت العرض.
 
+> ✏️ **تحديث:** أصبح هذا الرابط موجوداً جاهزاً في عمود `image_url` بجدول `exercises`. التفاصيل في القسم ١٨.
+
 ### خطوات الرفع
 
 الحاوية مقفلة أمام الرفع عبر الإنترنت، لذلك فُتحت **مؤقتاً** لهذه الملفات الخمسة فقط، ثم أُغلقت فوراً:
@@ -831,3 +834,61 @@ where e.name = v.name;
 1. ارفع الصورة من لوحة Supabase إلى المجلد المناسب داخل الحاوية: Storage ← `exercise-images` ← `resistance` أو `cardio`.
 2. استخدم اسماً واضحاً بحروف صغيرة وشرطات، مثل `cardio/rowing-machine.jpg`.
 3. عدّل `image_path` للتمرين في جدول `exercises`.
+
+---
+
+## ١٨. سجل التعديلات: إضافة عمود image_url
+
+### ما هو العمود الجديد؟
+
+| الخاصية | القيمة |
+|---|---|
+| الجدول | `public.exercises` |
+| اسم العمود | `image_url` |
+| النوع | `text` |
+| نوع العمود | **محسوب تلقائياً** (generated column) |
+| القيمة | عنوان الحاوية + `image_path` |
+| موقعه | العمود رقم 6 |
+
+### أمر الإضافة
+
+```sql
+alter table public.exercises
+  add column image_url text
+  generated always as (
+    'https://jdhgmdxgjrfdezrteigl.supabase.co/storage/v1/object/public/exercise-images/'
+    || image_path
+  ) stored;
+```
+
+**الشرح:**
+- **`generated always as (...)`:** القيمة تُحسب تلقائياً، و**لا يمكن الكتابة فيها يدوياً**.
+- **`||`:** تعني "ألصق النصين ببعض".
+- **`stored`:** الرابط محفوظ في الجدول، ويظهر مباشرة في Table Editor.
+- **التحديث التلقائي:** إذا تغيّر `image_path`، يتغيّر `image_url` وحده.
+- **بدون صورة:** إذا كان `image_path` فارغاً (NULL)، يكون `image_url` فارغاً أيضاً.
+
+### الروابط الحالية
+
+| التمرين | `image_url` |
+|---|---|
+| Dumbbell Biceps Curl | https://jdhgmdxgjrfdezrteigl.supabase.co/storage/v1/object/public/exercise-images/resistance/dumbbell-biceps-curl.jpg |
+| Stationary Bike | https://jdhgmdxgjrfdezrteigl.supabase.co/storage/v1/object/public/exercise-images/cardio/stationary-bike.jpg |
+| Treadmill | https://jdhgmdxgjrfdezrteigl.supabase.co/storage/v1/object/public/exercise-images/cardio/treadmill.jpg |
+| Elliptical | https://jdhgmdxgjrfdezrteigl.supabase.co/storage/v1/object/public/exercise-images/cardio/elliptical.jpg |
+| Swimming | https://jdhgmdxgjrfdezrteigl.supabase.co/storage/v1/object/public/exercise-images/cardio/swimming.jpg |
+
+### التحقق بعد الإضافة
+
+| ما تحققنا منه | النتيجة |
+|---|---|
+| العمود موجود ومحسوب تلقائياً (`ALWAYS`) | ✅ |
+| الروابط الخمسة صحيحة | ✅ |
+| فتح كل رابط من الجدول | يعمل (رمز 200)، ونوعه `image/jpeg` ✅ |
+| `image_path` والصور في الحاوية | لم تتغير ✅ |
+| `workouts` و `personal_records` | لم يتغيرا ✅ |
+
+### تنبيه
+الرابط يحتوي على عنوان المشروع مكتوباً داخل الأمر. إذا تغيّر عنوان المشروع أو اسم الحاوية يوماً:
+- **`image_path` يبقى صحيحاً.**
+- **`image_url` يحتاج تعديل الأمر:** يجب حذف العمود وإعادة إنشائه بالعنوان الجديد.
