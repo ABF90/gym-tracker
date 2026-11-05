@@ -15,6 +15,7 @@ import { useActiveSession, useHydrated, type ResistanceSession } from "@/lib/act
 import { playChime, primeAudio } from "@/lib/alert";
 import { elapsedMs, remainingMs, useNow } from "@/lib/clock";
 import { cn } from "@/lib/cn";
+import { exerciseName } from "@/lib/data";
 import { formatClock, formatNumber } from "@/lib/format";
 import { fmt } from "@/lib/i18n";
 import { useI18n } from "@/lib/i18n/provider";
@@ -47,7 +48,8 @@ export function ResistanceSessionScreen() {
 }
 
 function Console({ session }: { session: ResistanceSession }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const name = exerciseName(session.exercise, locale);
   const reduced = useReducedMotion();
   const paused = session.clock.pausedAt !== null;
   const now = useNow(!paused);
@@ -67,7 +69,7 @@ function Console({ session }: { session: ResistanceSession }) {
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-5xl flex-col px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] sm:px-6">
       <TopBar
-        title={session.exercise.name}
+        title={name}
         elapsed={elapsed}
         paused={paused}
         onPause={() => (paused ? actions.resumeWorkout() : actions.pauseWorkout())}
@@ -80,7 +82,7 @@ function Console({ session }: { session: ResistanceSession }) {
           <div className="grid flex-1 items-center gap-6 py-4 lg:grid-cols-2 lg:gap-10">
             <ExerciseImage
               imagePath={session.exercise.image_path}
-              name={session.exercise.name}
+              name={name}
               kind="resistance"
               className="rounded-4xl"
               priority

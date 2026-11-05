@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, Copy, Play, Plus, Trash2 } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ExerciseImage } from "@/components/exercise/exercise-image";
 import { Button, IconButton } from "@/components/ui/button";
 import { ErrorState, GlassCard, Skeleton } from "@/components/ui/card";
@@ -14,7 +14,9 @@ import { isUnfinished, useActiveSession, type PlannedSet } from "@/lib/active-se
 import {
   bestRecords,
   buildHistory,
+  exerciseName,
   fetchExercises,
+  isImagePending,
   fetchRecords,
   fetchSessions,
   fetchWorkouts,
@@ -31,7 +33,21 @@ const DEFAULT_SET = { reps: 10, weightKg: 10 };
 const validReps = (n: number) => Number.isInteger(n) && n >= 1 && n <= 100;
 const validWeight = (n: number) => n >= 0 && n <= 500;
 
-export function ResistanceSetup({ exerciseId }: { exerciseId: string }) {
+type Draft = { plan: PlannedSet[]; notes: string };
+const draftKey = (exerciseId: string) => `gt.setup-draft.${exerciseId}`;
+
+/** Unsaved planner edits survive Back navigation for this tab (never sent anywhere). */
+function readDraft(exerciseId: string): Draft | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(draftKey(exerciseId));
+    return raw ? (JSON.parse(raw) as Draft) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function ResistanceSetup({ exerciseId, groupId, cardId }: { exerciseId: string; groupId?: string; cardId?: string }) {
   const { t, locale, dir } = useI18n();
   const router = useRouter();
   const toast = useToast();
@@ -52,8 +68,14 @@ export function ResistanceSetup({ exerciseId }: { exerciseId: string }) {
     return { exercise, last: last ?? null, best };
   }, [exerciseId]);
 
-  const [edited, setPlan] = useState<PlannedSet[] | null>(null);
-  const [notes, setNotes] = useState("");
+  const [edited, setPlan] = useState<PlannedSet[] | null>(() => readDraft(exerciseId)?.plan ?? null);
+  const [notes, setNotes] = useState(() => readDraft(exerciseId)?.notes ?? "");
+
+  useEffect(() => {
+    try {
+      if (edited || notes) window.sessionStorage.setItem(draftKey(exerciseId), JSON.stringify({ plan: edited ?? [], notes }));
+    } catch {}
+  }, [edited, notes, exerciseId]);
 
   // Until the user edits anything, the plan mirrors the last session (or a 3 × 10 default).
   const initialPlan = useMemo<PlannedSet[] | null>(() => {
@@ -62,7 +84,7 @@ export function ResistanceSetup({ exerciseId }: { exerciseId: string }) {
     return [0, 1, 2].map(() => ({ id: newId(), ...DEFAULT_SET }));
   }, [data]);
 
-  const sets = edited ?? initialPlan ?? [];
+  const sets = edited?.length ? edited : (initialPlan ?? []);
   const prefilled = !edited && Boolean(data?.last?.sets.length);
   const blocked = isUnfinished(active);
   const allValid = sets.length > 0 && sets.every((s) => validReps(s.reps) && validWeight(s.weightKg));
@@ -97,8 +119,11 @@ export function ResistanceSetup({ exerciseId }: { exerciseId: string }) {
 
   const start = () => {
     if (!data?.exercise || !allValid || blocked) return;
+    try {
+      window.sessionStorage.removeItem(draftKey(exerciseId));
+    } catch {}
     startResistance(
-      { id: data.exercise.id, name: data.exercise.name, image_path: data.exercise.image_path },
+      { id: data.exercise.id, name: data.exercise.name, name_ar: data.exercise.name_ar, image_path: data.exercise.image_path },
       sets,
       notes.trim() || null,
       60,
@@ -129,7 +154,10 @@ export function ResistanceSetup({ exerciseId }: { exerciseId: string }) {
 
   return (
     <div className="pb-28 lg:pb-0">
-      <Link href="/train/resistance" className="mb-6 inline-flex items-center gap-2 text-sm text-steel-400 hover:text-chalk">
+      <Link
+        href={groupId ? `/train/resistance/muscle/${groupId}${cardId ? `?card=${encodeURIComponent(cardId)}` : ""}` : "/train/resistance"}
+        className="mb-6 inline-flex items-center gap-2 text-sm text-steel-400 hover:text-chalk"
+      >
         <Back className="size-4" aria-hidden />
         {t.train.chooseExercise}
       </Link>
@@ -138,7 +166,8 @@ export function ResistanceSetup({ exerciseId }: { exerciseId: string }) {
         <div className="flex flex-col gap-4 lg:sticky lg:top-10 lg:self-start">
           <ExerciseImage
             imagePath={data.exercise.image_path}
-            name={data.exercise.name}
+            name={exerciseName(data.exercise, locale)}
+            pending={isImagePending(data.exercise)}
             kind="resistance"
             className="rounded-4xl"
             priority
@@ -146,7 +175,7 @@ export function ResistanceSetup({ exerciseId }: { exerciseId: string }) {
           />
           <div>
             <span className="text-xs font-medium uppercase tracking-[0.16em] text-lime-400">{t.common.resistance}</span>
-            <h1 className="mt-1 text-3xl font-semibold tracking-tight">{data.exercise.name}</h1>
+            <h1 className="mt-1 text-3xl font-semibold tracking-tight">{exerciseName(data.exercise, locale)}</h1>
           </div>
           <GlassCard className="grid grid-cols-2 gap-4 p-5 text-sm">
             <div>

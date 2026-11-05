@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { GlassCard, Skeleton, Stat } from "@/components/ui/card";
 import type { ResistanceSession } from "@/lib/active-session";
 import { elapsedMs } from "@/lib/clock";
-import { fetchRecordsForWorkouts, useQuery } from "@/lib/data";
+import { exerciseName, fetchRecordsForWorkouts, useQuery } from "@/lib/data";
 import { formatDuration, formatNumber } from "@/lib/format";
 import { fmt } from "@/lib/i18n";
 import { useI18n } from "@/lib/i18n/provider";
@@ -56,12 +56,12 @@ export function ResistanceSummary({ session }: { session: ResistanceSession }) {
         <h1 className="mt-5 text-3xl font-semibold tracking-tight">
           {completed.length ? t.summary.title : t.summary.abandoned}
         </h1>
-        <p className="mt-1 text-steel-400">{session.exercise.name}</p>
+        <p className="mt-1 text-steel-400">{exerciseName(session.exercise, locale)}</p>
       </motion.div>
 
       <ExerciseImage
         imagePath={session.exercise.image_path}
-        name={session.exercise.name}
+        name={exerciseName(session.exercise, locale)}
         kind="resistance"
         ratio="aspect-[16/9]"
         className="rounded-4xl"

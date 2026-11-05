@@ -4,7 +4,7 @@ import { useSyncExternalStore } from "react";
 import { readJSON, removeKey, writeJSON } from "./storage";
 import type { Countdown, Stopwatch } from "./clock";
 
-export type ExerciseRef = { id: string; name: string; image_path: string | null };
+export type ExerciseRef = { id: string; name: string; name_ar?: string | null; image_path: string | null };
 
 export type PlannedSet = { id: string; reps: number; weightKg: number };
 

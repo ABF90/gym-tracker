@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ArrowLeft, ArrowRight, Lock } from "lucide-react";
 import { ExerciseImage } from "@/components/exercise/exercise-image";
 import { ErrorState, GlassCard, Skeleton, Stat } from "@/components/ui/card";
-import { buildHistory, fetchExercises, fetchSessions, fetchWorkouts, resistanceStats, useQuery } from "@/lib/data";
+import { buildHistory, entryName, fetchExercises, fetchSessions, fetchWorkouts, resistanceStats, useQuery } from "@/lib/data";
 import { formatDate, formatDuration, formatNumber } from "@/lib/format";
 import { fmt } from "@/lib/i18n";
 import { useI18n } from "@/lib/i18n/provider";
@@ -52,13 +52,13 @@ export function HistoryDetail({ entryKey }: { entryKey: string }) {
       {back}
       <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr]">
         <div className="flex flex-col gap-4">
-          <ExerciseImage imagePath={entry.imagePath} name={entry.exerciseName} kind={entry.kind} className="rounded-4xl" priority sizes="(min-width: 1024px) 40vw, 100vw" />
+          <ExerciseImage imagePath={entry.imagePath} name={entryName(entry, locale)} pending={entry.imagePending} kind={entry.kind} className="rounded-4xl" priority sizes="(min-width: 1024px) 40vw, 100vw" />
           <div>
             <div className="flex flex-wrap items-center gap-2 text-xs">
               <span className="font-medium uppercase tracking-[0.16em] text-lime-400">{entry.kind === "cardio" ? t.common.cardio : t.common.resistance}</span>
               <span className="rounded-md border border-line px-2 py-0.5 text-steel-400">{statusLabel}</span>
             </div>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight">{entry.exerciseName}</h1>
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight">{entryName(entry, locale)}</h1>
             <p className="mt-1 text-steel-400">{formatDate(entry.date, locale, "long")}</p>
           </div>
           <p className="flex items-center gap-2 text-xs text-steel-500">

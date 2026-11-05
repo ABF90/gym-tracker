@@ -1,5 +1,5 @@
-import { ExercisePicker } from "@/features/train/exercise-picker";
+import { MusclePicker } from "@/features/library/muscle-picker";
 
 export default function ResistancePickerPage() {
-  return <ExercisePicker type="resistance" />;
+  return <MusclePicker />;
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Dumbbell, HeartPulse } from "lucide-react";
+import { Dumbbell, HeartPulse, ImageOff } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/cn";
 import { exerciseImageUrl, type ExerciseType } from "@/lib/data";
@@ -19,6 +19,7 @@ export function ExerciseImage({
   sizes = "(min-width: 1024px) 33vw, 100vw",
   priority,
   ratio = "aspect-[4/3]",
+  pending,
 }: {
   imagePath: string | null;
   name: string;
@@ -27,6 +28,8 @@ export function ExerciseImage({
   sizes?: string;
   priority?: boolean;
   ratio?: string;
+  /** Library artwork still being corrected: show a plain labelled tile, never a stand-in anatomy image. */
+  pending?: boolean;
 }) {
   const { t } = useI18n();
   const url = exerciseImageUrl(imagePath);
@@ -55,6 +58,15 @@ export function ExerciseImage({
             className="object-contain"
           />
         </>
+      ) : pending ? (
+        <div
+          role="img"
+          aria-label={`${name} — ${t.library.imagePending}`}
+          className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-ink-900 p-4 text-center"
+        >
+          <ImageOff className="size-7 text-steel-500" aria-hidden />
+          <span className="text-xs leading-relaxed text-steel-400">{t.library.imagePending}</span>
+        </div>
       ) : (
         <div
           role="img"

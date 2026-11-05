@@ -10,6 +10,26 @@ export type Workout = Tables<"workouts">;
 export type Session = Tables<"workout_sessions">;
 export type PersonalRecord = Tables<"personal_records">;
 export type ExerciseType = "resistance" | "cardio";
+export type MuscleGroup = Tables<"muscle_groups">;
+export type ExerciseCard = Tables<"exercise_cards">;
+export type CardMuscle = Tables<"exercise_card_muscles">;
+export type LibraryCard = ExerciseCard & { exercise: Exercise; muscles: CardMuscle[] };
+
+/** Exercise name in the current language (Arabic falls back to the English canonical name). */
+export function exerciseName(exercise: { name: string; name_ar?: string | null } | null | undefined, locale: "ar" | "en", fallback = "") {
+  if (!exercise) return fallback;
+  return locale === "ar" && exercise.name_ar ? exercise.name_ar : exercise.name;
+}
+
+export function muscleName(group: Pick<MuscleGroup, "name_ar" | "name_en"> | null | undefined, locale: "ar" | "en") {
+  if (!group) return "";
+  return locale === "ar" ? group.name_ar : group.name_en;
+}
+
+/** A library exercise whose artwork is still being corrected (never shown with a stand-in anatomy image). */
+export function isImagePending(exercise: Pick<Exercise, "slug" | "image_path">) {
+  return Boolean(exercise.slug) && !exercise.image_path;
+}
 
 /** Public URL for an image in the exercise-images bucket, built from its stored relative path. */
 export function exerciseImageUrl(imagePath: string | null | undefined) {
@@ -19,6 +39,46 @@ export function exerciseImageUrl(imagePath: string | null | undefined) {
 }
 
 // ---------------------------------------------------------------- queries
+
+export async function fetchMuscleGroups() {
+  const supabase = getSupabase();
+  const [{ data: groups, error }, { data: cards, error: cardsError }] = await Promise.all([
+    supabase.from("muscle_groups").select("*").order("display_order"),
+    supabase.from("exercise_cards").select("muscle_group_id"),
+  ]);
+  if (error) throw error;
+  if (cardsError) throw cardsError;
+  const counts = new Map<string, number>();
+  for (const c of cards) counts.set(c.muscle_group_id, (counts.get(c.muscle_group_id) ?? 0) + 1);
+  return groups.map((g) => ({ ...g, cardCount: counts.get(g.id) ?? 0 }));
+}
+
+/** Cards for one muscle group with their exercise and muscle roles, in display order. */
+export async function fetchGroupCards(groupId: string): Promise<{ group: MuscleGroup | null; cards: LibraryCard[]; groups: MuscleGroup[] }> {
+  const supabase = getSupabase();
+  const [{ data: groups, error: gError }, { data: cards, error: cError }] = await Promise.all([
+    supabase.from("muscle_groups").select("*").order("display_order"),
+    supabase.from("exercise_cards").select("*").eq("muscle_group_id", groupId).order("display_order"),
+  ]);
+  if (gError) throw gError;
+  if (cError) throw cError;
+  const ids = cards.map((c) => c.id);
+  const exerciseIds = [...new Set(cards.map((c) => c.exercise_id))];
+  const [{ data: muscles, error: mError }, { data: exercises, error: eError }] = await Promise.all([
+    ids.length ? supabase.from("exercise_card_muscles").select("*").in("card_id", ids) : Promise.resolve({ data: [] as CardMuscle[], error: null }),
+    exerciseIds.length ? supabase.from("exercises").select("*").in("id", exerciseIds) : Promise.resolve({ data: [] as Exercise[], error: null }),
+  ]);
+  if (mError) throw mError;
+  if (eError) throw eError;
+  const exerciseById = new Map(exercises.map((e) => [e.id, e]));
+  return {
+    group: groups.find((g) => g.id === groupId) ?? null,
+    groups,
+    cards: cards
+      .filter((c) => exerciseById.has(c.exercise_id))
+      .map((c) => ({ ...c, exercise: exerciseById.get(c.exercise_id)!, muscles: muscles.filter((m) => m.card_id === c.id) })),
+  };
+}
 
 export async function fetchExercises(type?: ExerciseType) {
   let query = getSupabase().from("exercises").select("*").order("name");
@@ -88,6 +148,9 @@ export type HistoryEntry = {
   kind: ExerciseType;
   exerciseId: string | null;
   exerciseName: string;
+  /** Arabic catalog name when the exercise is in the library. */
+  exerciseNameAr: string | null;
+  imagePending: boolean;
   imagePath: string | null;
   date: string;
   status: "completed" | "active" | "abandoned" | "legacy";
@@ -134,7 +197,9 @@ export function buildHistory(workouts: Workout[], sessions: Session[], exercises
         kind,
         exerciseId: row.exercise_id,
         exerciseName: exercise?.name ?? row.exercise_name,
+        exerciseNameAr: exercise?.name_ar ?? null,
         imagePath: exercise?.image_path ?? null,
+        imagePending: exercise ? isImagePending(exercise) : false,
         date: session?.workout_date ?? row.workout_date,
         status: session ? (session.status as HistoryEntry["status"]) : "legacy",
         sets: [],
@@ -167,6 +232,11 @@ export function buildHistory(workouts: Workout[], sessions: Session[], exercises
 }
 
 /** Best (heaviest) record per exercise, plus the full progression for each. */
+/** Display name for a history entry in the current language. */
+export function entryName(entry: Pick<HistoryEntry, "exerciseName" | "exerciseNameAr">, locale: "ar" | "en") {
+  return locale === "ar" && entry.exerciseNameAr ? entry.exerciseNameAr : entry.exerciseName;
+}
+
 export function bestRecords(records: PersonalRecord[]) {
   const byExercise = new Map<string, PersonalRecord[]>();
   for (const record of records) {

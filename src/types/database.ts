@@ -15,29 +15,125 @@ export type Database = {
     Tables: {
       exercises: {
         Row: {
+          aliases: string[];
+          catalog_status: string | null;
           created_at: string;
+          equipment: string | null;
           exercise_type: string;
           id: string;
           image_path: string | null;
           image_url: string | null;
+          is_active: boolean;
           name: string;
+          name_ar: string | null;
+          slug: string | null;
         };
         Insert: {
+          aliases?: string[];
+          catalog_status?: string | null;
           created_at?: string;
+          equipment?: string | null;
           exercise_type: string;
           id?: string;
           image_path?: string | null;
           image_url?: string | null;
+          is_active?: boolean;
           name: string;
+          name_ar?: string | null;
+          slug?: string | null;
         };
         Update: {
+          aliases?: string[];
+          catalog_status?: string | null;
           created_at?: string;
+          equipment?: string | null;
           exercise_type?: string;
           id?: string;
           image_path?: string | null;
           image_url?: string | null;
+          is_active?: boolean;
           name?: string;
+          name_ar?: string | null;
+          slug?: string | null;
         };
+        Relationships: [];
+      };
+      muscle_groups: {
+        Row: {
+          body_view: string;
+          display_order: number;
+          id: string;
+          image_path: string | null;
+          image_status: string;
+          is_active: boolean;
+          name_ar: string;
+          name_en: string;
+        };
+        Insert: {
+          body_view: string;
+          display_order: number;
+          id: string;
+          image_path?: string | null;
+          image_status?: string;
+          is_active?: boolean;
+          name_ar: string;
+          name_en: string;
+        };
+        Update: {
+          body_view?: string;
+          display_order?: number;
+          id?: string;
+          image_path?: string | null;
+          image_status?: string;
+          is_active?: boolean;
+          name_ar?: string;
+          name_en?: string;
+        };
+        Relationships: [];
+      };
+      exercise_cards: {
+        Row: {
+          display_order: number;
+          exercise_id: string;
+          exercise_type: string;
+          focus_claim: string;
+          focus_region: string | null;
+          group_role: string;
+          id: string;
+          image_path: string | null;
+          image_status: string;
+          muscle_group_id: string;
+        };
+        Insert: {
+          display_order: number;
+          exercise_id: string;
+          exercise_type?: string;
+          focus_claim?: string;
+          focus_region?: string | null;
+          group_role: string;
+          id: string;
+          image_path?: string | null;
+          image_status?: string;
+          muscle_group_id: string;
+        };
+        Update: {
+          display_order?: number;
+          exercise_id?: string;
+          exercise_type?: string;
+          focus_claim?: string;
+          focus_region?: string | null;
+          group_role?: string;
+          id?: string;
+          image_path?: string | null;
+          image_status?: string;
+          muscle_group_id?: string;
+        };
+        Relationships: [];
+      };
+      exercise_card_muscles: {
+        Row: { card_id: string; muscle_group_id: string; role: string };
+        Insert: { card_id: string; muscle_group_id: string; role: string };
+        Update: { card_id?: string; muscle_group_id?: string; role?: string };
         Relationships: [];
       };
       personal_records: {

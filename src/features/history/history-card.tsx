@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { ExerciseImage } from "@/components/exercise/exercise-image";
 import { cn } from "@/lib/cn";
-import { resistanceStats, type HistoryEntry } from "@/lib/data";
+import { entryName, resistanceStats, type HistoryEntry } from "@/lib/data";
 import { formatDate, formatDuration, formatNumber } from "@/lib/format";
 import { useI18n } from "@/lib/i18n/provider";
 
@@ -35,7 +35,8 @@ export function HistoryCard({ entry }: { entry: HistoryEntry }) {
     >
       <ExerciseImage
         imagePath={entry.imagePath}
-        name={entry.exerciseName}
+        name={entryName(entry, locale)}
+        pending={entry.imagePending}
         kind={entry.kind}
         ratio="aspect-square"
         sizes="80px"
@@ -54,7 +55,7 @@ export function HistoryCard({ entry }: { entry: HistoryEntry }) {
           <span className="text-xs text-steel-500">{formatDate(entry.date, locale)}</span>
           {entry.status === "active" && <span className="text-xs text-steel-400">· {t.history.status_active}</span>}
         </div>
-        <div className="mt-1 truncate text-base font-medium">{entry.exerciseName}</div>
+        <div className="mt-1 truncate text-base font-medium">{entryName(entry, locale)}</div>
         <div className="tabular mt-0.5 truncate text-sm text-steel-400">{facts.join(" · ")}</div>
       </div>
       <Chevron className="size-5 shrink-0 text-steel-500 transition-transform group-hover:translate-x-0.5 rtl:group-hover:-translate-x-0.5" aria-hidden />

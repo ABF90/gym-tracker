@@ -23,7 +23,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/card";
 import { useHydrated } from "@/lib/active-session";
 import { useNow } from "@/lib/clock";
-import { fetchExercises, useQuery } from "@/lib/data";
+import { fetchMuscleGroups, muscleName, useQuery } from "@/lib/data";
 import { formatClock } from "@/lib/format";
 import { fmt } from "@/lib/i18n";
 import { useI18n } from "@/lib/i18n/provider";
@@ -110,10 +110,10 @@ function DemoConsole() {
 }
 
 export function Landing() {
-  const { t, dir } = useI18n();
+  const { t, dir, locale } = useI18n();
   const signedIn = useSignedIn();
   const Arrow = dir === "rtl" ? ArrowLeft : ArrowRight;
-  const { data: exercises, loading } = useQuery(() => fetchExercises(), []);
+  const { data: groups, loading } = useQuery(() => fetchMuscleGroups(), []);
 
   const features = [
     { icon: Dumbbell, title: t.landing.f1Title, body: t.landing.f1Body },
@@ -225,21 +225,23 @@ export function Landing() {
             </h2>
             <p className="mt-3 text-steel-400">{t.landing.exercisesBody}</p>
           </Reveal>
-          <div className="mt-10 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
-            {loading && !exercises
-              ? [0, 1, 2, 3, 4].map((i) => <Skeleton key={i} className="aspect-[4/5] rounded-3xl" />)
-              : (exercises ?? []).map((exercise, i) => (
-                  <Reveal key={exercise.id} delay={i * 0.04}>
+          <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-8">
+            {loading && !groups
+              ? Array.from({ length: 8 }, (_, i) => <Skeleton key={i} className="aspect-[4/5] rounded-3xl" />)
+              : (groups ?? []).map((g, i) => (
+                  <Reveal key={g.id} delay={(i % 8) * 0.03}>
                     <figure className="glass overflow-hidden rounded-3xl">
                       <ExerciseImage
-                        imagePath={exercise.image_path}
-                        name={exercise.name}
-                        kind={exercise.exercise_type as "resistance" | "cardio"}
-                        sizes="(min-width: 1024px) 20vw, (min-width: 768px) 33vw, 50vw"
+                        imagePath={g.image_path}
+                        pending={!g.image_path}
+                        name={muscleName(g, locale)}
+                        kind="resistance"
+                        ratio="aspect-[4/5]"
+                        sizes="(min-width: 1024px) 12vw, (min-width: 640px) 24vw, 46vw"
                       />
-                      <figcaption className="p-4">
-                        <div className="text-xs text-lime-400">{exercise.exercise_type === "cardio" ? t.common.cardio : t.common.resistance}</div>
-                        <div className="mt-0.5 truncate text-sm font-medium">{exercise.name}</div>
+                      <figcaption className="p-3">
+                        <div className="truncate text-sm font-medium">{muscleName(g, locale)}</div>
+                        <div className="tabular text-xs text-lime-400">{fmt(t.library.exercisesCount, { n: g.cardCount })}</div>
                       </figcaption>
                     </figure>
                   </Reveal>

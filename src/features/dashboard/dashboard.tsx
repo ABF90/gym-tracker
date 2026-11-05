@@ -10,6 +10,8 @@ import { isUnfinished, useActiveSession } from "@/lib/active-session";
 import {
   bestRecords,
   buildHistory,
+  entryName,
+  exerciseName,
   fetchExercises,
   fetchRecords,
   fetchSessions,
@@ -83,7 +85,7 @@ export function Dashboard() {
             </span>
             <div className="min-w-0 flex-1">
               <div className="text-sm text-lime-400">{t.dashboard.resume}</div>
-              <div className="truncate font-medium">{active.exercise.name}</div>
+              <div className="truncate font-medium">{exerciseName(active.exercise, locale)}</div>
             </div>
             <span className="flex items-center gap-1 text-sm font-medium text-lime-400">
               {t.dashboard.resumeAction}
@@ -281,11 +283,13 @@ export function ModeCard({
 }
 
 function LatestCard({ entry }: { entry: ReturnType<typeof buildHistory>[number] }) {
+  const { locale } = useI18n();
   return (
     <div className="flex flex-col gap-3">
       <ExerciseImage
         imagePath={entry.imagePath}
-        name={entry.exerciseName}
+        name={entryName(entry, locale)}
+        pending={entry.imagePending}
         kind={entry.kind}
         className="rounded-3xl"
         sizes="(min-width: 1024px) 40vw, 100vw"

@@ -2,7 +2,7 @@
 
 import { Trophy } from "lucide-react";
 import { ExerciseImage } from "@/components/exercise/exercise-image";
-import type { Exercise, PersonalRecord } from "@/lib/data";
+import { exerciseName, type Exercise, type PersonalRecord } from "@/lib/data";
 import { formatDate, formatNumber } from "@/lib/format";
 import { useI18n } from "@/lib/i18n/provider";
 
@@ -12,14 +12,14 @@ export function RecordCard({ record, exercise }: { record: PersonalRecord; exerc
     <div className="glass flex items-center gap-4 rounded-3xl p-3 pe-5">
       <ExerciseImage
         imagePath={exercise?.image_path ?? null}
-        name={record.exercise_name}
+        name={exerciseName(exercise, locale, record.exercise_name)}
         kind="resistance"
         ratio="aspect-square"
         sizes="80px"
         className="w-16 shrink-0 rounded-2xl"
       />
       <div className="min-w-0 flex-1">
-        <div className="truncate text-sm text-steel-300">{exercise?.name ?? record.exercise_name}</div>
+        <div className="truncate text-sm text-steel-300">{exerciseName(exercise, locale, record.exercise_name)}</div>
         <div className="mt-0.5 flex items-baseline gap-1.5" dir="ltr">
           <span className="tabular text-2xl font-semibold text-lime-400">{formatNumber(record.best_weight_kg)}</span>
           <span className="text-sm text-steel-400">{t.common.kg}</span>
